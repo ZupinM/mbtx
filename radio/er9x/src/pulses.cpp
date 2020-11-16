@@ -13,7 +13,8 @@ extern struct t_latency g_latency ;
 //#endif
 
 #define BITLEN_SERIAL (8*2) //125000 Baud
-#define BITLEN_SBUS (10*2) //100000 Baud
+//#define BITLEN_SBUS (10*2) //100000 Baud
+#define BITLEN_SBUS (5) //400000 Baud	CRSF baudrate
 
 union p2mhz_t 
 {
@@ -245,6 +246,12 @@ void setupPulses()
 #ifdef MULTI_PROTOCOL
         case PROTO_MULTI:
 #endif // MULTI_PROTOCOL
+#ifdef CRSF_PROTOCOL
+		case PROTO_CRSF:
+            set_timer3_capture() ;
+            OCR1C = 200 ;			// 100 uS
+            TCNT1 = 300 ;			// Past the OCR1C value
+            ICR1 = 8000 ;		// Next frame starts in 4 mS
 #ifdef SBUS_PROTOCOL	
         case PROTO_SBUS:
 #endif // SBUS_PROTOCOL
@@ -306,6 +313,8 @@ void setupPulses()
 #ifdef MULTI_PROTOCOL
     case PROTO_MULTI:
 #endif // MULTI_PROTOCOL
+#ifdef CRSF_PROTOCOL
+	case PROTO_CRSF:
 #ifdef SBUS_PROTOCOL	
     case PROTO_SBUS:
 #endif // SBUS_PROTOCOL
@@ -457,6 +466,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 //    if (g_model.protocol == PROTO_DSM2)
 //#endif // SBUS_PROTOCOL
 //#endif // MULTI_PROTOCOL
+
 	if ( g_model.protocol != PROTO_PXX)
 	{
 		// DSM2
@@ -467,6 +477,12 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 			t = 16000 ; //next frame starts in 11 msec 16000 = 2*(11000 - 25*12*10)
 		}
 #endif // SBUS_PROTOCOL
+#ifdef CRSF_PROTOCOL
+		if ( g_model.protocol == PROTO_CRSF)
+		{
+			t = 7700 ; //next frame starts in 4 msec 7700 = 2*(4000 - 15*8*2.5)
+		}
+#endif //CRSF_PRTOCOL
 #ifdef MULTI_PROTOCOL
 		if ( g_model.protocol == PROTO_MULTI)
 			t = 15760 ; //next frame starts in 11 msec 15760 = 2*(11000 - 26*12*10)
@@ -1241,6 +1257,12 @@ void setupPulsesSerial(void)
 #ifdef MULTI_PROTOCOL
 		if ( protocol == PROTO_SBUS )
 #endif // MULTI_PROTOCOL
+		if (protocol == PROTO_CRSF )
+		{
+			sendByteSerial(0xC8) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
+			sendByteSerial(13) ;	//CRSF frame size: 8x11bits +  frametype + crc
+			sendByteSerial(0x16) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
+		}else
 			sendByteSerial(0x0F) ;
 #ifdef MULTI_PROTOCOL
 		else
@@ -1277,7 +1299,7 @@ void setupPulsesSerial(void)
 		
 		uint8_t startChan = g_model.ppmStart ;
 
-		for ( i = 0 ; i < 16 ; i += 1 )
+		for ( i = 0 ; i < 8 ; i += 1 )		//Default 16 channels, my CRSF: 8 channels
 		{
 			int16_t x = g_chans512[startChan] ;
 #ifdef FAILSAFE			

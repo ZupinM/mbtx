@@ -102,9 +102,9 @@
 //#define SBUS_PROTOCOL	1
 //#endif
 
-#ifndef NMEA
 #define SBUS_PROTOCOL	1
-#endif
+#define CRSF_PROTOCOL	1
+
 
 // Bits in SystemOptions
 #define SYS_OPT_HARDWARE_EDIT	1
@@ -716,6 +716,8 @@ uint8_t IS_EXPO_THROTTLE( uint8_t x ) ;
 #define PROTO_PPMSIM     4
  #ifdef SBUS_PROTOCOL	
 #define PROTO_SBUS       5
+ #ifdef CRSF_PROTOCOL
+#define PROTO_CRSF 		 5
 #define PROT_MAX         5
  #else
 #define PROT_MAX         4

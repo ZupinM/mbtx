@@ -13297,7 +13297,7 @@ extern uint8_t getExpectedSwitchState( uint8_t i ) ;
 				subN++;
 			}
 #ifdef SBUS_PROTOCOL	
-  		if ( ( ppmTypeProto ) || (protocol == PROTO_SBUS) ) //if( (protocol == PROTO_PPM) || (protocol == PROTO_PPM16) || (protocol == PROTO_PPMSIM) )
+  		if ( ( ppmTypeProto ) || (protocol == PROTO_SBUS) || (protocol == PROTO_CRSF)) //if( (protocol == PROTO_PPM) || (protocol == PROTO_PPM16) || (protocol == PROTO_PPMSIM) )
 #else
   		if ( ppmTypeProto )
 #endif

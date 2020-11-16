@@ -66,7 +66,7 @@ OBJDIR = obj
 # Enable JETI-Telemetry or FrSky Telemetry reception on UART0
 # For this option you need to modify your hardware!
 # More information at [insertURLhere]
-EXT = STD
+#EXT = STD
 
 
 ifeq ($(CPU), 128)
@@ -116,9 +116,9 @@ endif
 #endif
 
 
-HELI = YES
+HELI = NO
 
-TEMPLATES = YES
+TEMPLATES = NO
 
 NOPOTSCROLL =
 
@@ -279,12 +279,12 @@ endif
 
 # If JETI-Support is enabled
 ifeq ($(EXT), JETI)
- CPPDEFS += -DJETI
+# CPPDEFS += -DJETI
 endif
 
 # If FRSKY-Support is enabled
 ifeq ($(EXT), FRSKY)
- CPPDEFS += -DFRSKY
+# CPPDEFS += -DFRSKY
 endif
 
 ifeq ($(SERVOICE), YES)
@@ -304,17 +304,17 @@ endif
 
 # If NMEA-Support is enabled
 ifeq ($(EXT), NMEA)
- CPPDEFS += -DNMEA
+ #CPPDEFS += -DNMEA
 # If NMEA and HUB-Support is enabled
   ifeq ($(HUB), YES)
-    CPPDEFS += -DHUB
+   # CPPDEFS += -DHUB
   endif
 endif
 
 #if FrSky Sensor Hub native protocol is enabled
 ifeq ($(EXT), FRSKY)
 	ifeq ($(N2F), YES)
-		CPPDEFS += -DN2F
+	#	CPPDEFS += -DN2F
 	endif
 endif
 
@@ -593,7 +593,7 @@ COPY = cp
 WINSHELL = cmd
 
 # th9x/er9x-specific
-XBM2LBM = ruby ../util/xbm2lbm.rb
+#XBM2LBM = ruby ../util/xbm2lbm.rb
 AREV = $(shell sh -c "cat .svn/entries | sed -n '4p'")
 REV = $(shell echo $$(( $(AREV) + 1 )))
 PROV=$(shell sh -c "cat prov.txt")
