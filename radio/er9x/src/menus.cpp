@@ -9753,6 +9753,7 @@ void perOut(int16_t *chanOut, uint8_t att)
 
 
 //#if defined(CPUM128) || defined(CPUM2561)
+#ifdef MULTI_PROTOCOL
 #ifndef NMEA
 void multiOption( uint8_t x, uint8_t y, int8_t option, uint8_t attr, uint8_t protocol )
 {
@@ -9827,7 +9828,7 @@ void multiOption( uint8_t x, uint8_t y, int8_t option, uint8_t attr, uint8_t pro
 	}
 	lcd_outdezAtt( x, y, option, attr ) ;
 }
-//#endif
+#endif
 #endif
 
 
@@ -13188,7 +13189,7 @@ extern uint8_t getExpectedSwitchState( uint8_t i ) ;
 			}
 
 			uint8_t cols = 0 ;
-			lcd_putsAttIdx(  6*FW, y, PSTR(PROT_STR), protocol, (sub==subN && subSub==0 ? blink:0) );
+			lcd_putsAttIdx(  7*FW, y, PSTR(PROT_STR), protocol, (sub==subN && subSub==0 ? blink:0) );
   		if( ppmTypeProto )// ( protocol == PROTO_PPM ) || (protocol == PROTO_PPM16) || (protocol == PROTO_PPMSIM) )
 			{
 				uint8_t x ;

@@ -13,8 +13,8 @@ extern struct t_latency g_latency ;
 //#endif
 
 #define BITLEN_SERIAL (8*2) //125000 Baud
-//#define BITLEN_SBUS (10*2) //100000 Baud
-#define BITLEN_SBUS (5) //400000 Baud	CRSF baudrate
+#define BITLEN_SBUS (10*2) //100000 Baud
+#define BITLEN_CRSF (5) //400000 Baud	
 
 union p2mhz_t 
 {
@@ -246,20 +246,15 @@ void setupPulses()
 #ifdef MULTI_PROTOCOL
         case PROTO_MULTI:
 #endif // MULTI_PROTOCOL
-#ifdef CRSF_PROTOCOL
-		case PROTO_CRSF:
-            set_timer3_capture() ;
-            OCR1C = 200 ;			// 100 uS
-            TCNT1 = 300 ;			// Past the OCR1C value
-            ICR1 = 8000 ;		// Next frame starts in 4 mS
-#ifdef SBUS_PROTOCOL	
+#ifdef SBUS_PROTOCOL
+		case PROTO_CRSF:	
         case PROTO_SBUS:
 #endif // SBUS_PROTOCOL
         case PROTO_DSM2:
             set_timer3_capture() ;
-            OCR1C = 200 ;			// 100 uS
-            TCNT1 = 300 ;			// Past the OCR1C value
-            ICR1 = 44000 ;		// Next frame starts in 11/22 mS
+            OCR1C = 80 ;			// 100 uS
+            TCNT1 = 100 ;			// Past the OCR1C value
+            ICR1 = 10000 ;		// Next frame starts in 11/22 mS
 #ifdef CPUM2561
             TIMSK1 |= (1<<ICIE1) ;		// Enable CAPT
 #else
@@ -315,6 +310,7 @@ void setupPulses()
 #endif // MULTI_PROTOCOL
 #ifdef CRSF_PROTOCOL
 	case PROTO_CRSF:
+#endif //CRSF_PTOTOCOL
 #ifdef SBUS_PROTOCOL	
     case PROTO_SBUS:
 #endif // SBUS_PROTOCOL
@@ -404,9 +400,76 @@ void setupPulsesPPM( uint8_t proto )
 	*ptr=0;
 }
 
+//uint8_t pulseIndex_gl = 0;
+uint8_t pulseLengths[120];
+uint8_t *pulsePointer = pulseLengths;
 
 ISR(TIMER1_CAPT_vect) //2MHz pulse generation
 {
+PULSE:
+	PORTB ^=  (1<<OUT_B_PPM);
+	if(*pulsePointer < 5){
+		TCNT1 = 0;
+		ICR1 = 255; //no interrupt,, Delay without using extra registers
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;	
+		ICR1 = 255;	
+		pulsePointer++;
+		goto PULSE;
+	}
+	ICR1 = *pulsePointer ;
+	if (*pulsePointer<=50)
+	{
+		pulsePointer++;
+		return;
+	}
+	if (g_model.protocol == PROTO_CRSF)
+	{
+       PORTB |=  (1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
+	   pulsePointer = pulseLengths;
+	   ICR1 = 255;
+	}
+	if (g_model.protocol == PROTO_SBUS &&  *pulsePointer > 200 )
+	{
+       PORTB &=  ~(1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
+	   pulsePointer = pulseLengths; 
+	   return;
+	}
+	pulsePointer++; //SBUS
+
+}
+/*PULSE:
+	PORTB ^=  (1<<OUT_B_PPM);
+	uint8_t y = pulseLengths[pulseIndex_gl++];
+	if(y < pass_bitlen*2){
+		ICR1 = 255; //no interrupt
+		TCNT1 = 0;
+		for(volatile uint8_t i=0 ; i<1 ; i++);
+		goto PULSE;
+	}
+	ICR1 = y ;
+	if (y<=50)
+		return;
+	if (g_model.protocol == PROTO_CRSF)
+	{
+       PORTB |=  (1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
+	   pulseIndex_gl = 0;  
+	   ICR1 = 255;
+		return;
+	}
+	if (g_model.protocol == PROTO_SBUS &&  y > 200 )
+	{
+       PORTB &=  ~(1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
+	   pulseIndex_gl = 0;  
+	}
+
+}
+
 	//      static uint8_t  pulsePol;
 	uint8_t x ;
 	uint8_t y ;
@@ -433,7 +496,7 @@ ISR(TIMER1_CAPT_vect) //2MHz pulse generation
 		*Serial_pulsePtr = x ;
 	}
 
-	if ( y > 200 )
+	if ( y > 80 )
 	{
 #ifdef SBUS_PROTOCOL	
 		if ( ( g_model.protocol == PROTO_SBUS ) && (!g_model.pulsePol) ) 
@@ -447,6 +510,36 @@ ISR(TIMER1_CAPT_vect) //2MHz pulse generation
 		}
 	}
 	heartbeat |= HEART_TIMER2Mhz;
+}*/
+
+
+
+void SerialPulseCalc(void){
+	uint8_t *y = pulseLengths;
+	while(1){
+		uint8_t x ;
+		x = *Serial_pulsePtr;      // Byte size
+		*y = x & 0x0F ;
+		if ( *y == 15 )
+		{
+			*y = 255 ;
+			break;
+		}
+
+		*y *= pass_bitlen ;
+		*y -= 1 ;
+		y++;
+
+		x /= 16 ; // same as x >>= 4 but less code
+		if ( x == 0 )
+		{
+		Serial_pulsePtr += 1 ;
+		}
+		else
+		{
+			*Serial_pulsePtr = x ;
+		}	
+	}
 }
 
 
@@ -480,7 +573,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 #ifdef CRSF_PROTOCOL
 		if ( g_model.protocol == PROTO_CRSF)
 		{
-			t = 7700 ; //next frame starts in 4 msec 7700 = 2*(4000 - 15*8*2.5)
+			t = 7325 ; //next frame starts in 4 msec 7325 = 2*(4000 - 15*9*2.5)
 		}
 #endif //CRSF_PRTOCOL
 #ifdef MULTI_PROTOCOL
@@ -489,11 +582,17 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 #endif // MULTI_PROTOCOL
     ICR1 = t ; //next frame start time
 	 	if (OCR1C<255)
-			OCR1C = t-5000 ;  //delay setup pulses to reduce sytem latency
+		{
+		 	if(g_model.protocol == PROTO_CRSF)
+				OCR1C = t-1500 ;  //delay setup pulses to reduce sytem latency (calculate pulses 250us before generating them)
+			else
+				OCR1C = t-3200;
+		}
 		else
-  	{
-       OCR1C=200;
-       setupPulses();
+  		{
+			setupPulses();
+			SerialPulseCalc();
+			OCR1C=pass_bitlen*10;
  		}
   }
   else		// must be PXX
@@ -1143,6 +1242,7 @@ Serial: 100000 Baud 8e2      _ xxxx xxxx p --
 //    ptrControl->PcmBitCount = ptrControl->PcmByte = 0 ;
 //  }
 //}
+uint8_t len_gl;
 
 static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 {
@@ -1165,6 +1265,40 @@ static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 	}
 #endif // SBUS_PROTOCOL & MULTI_PROTOCOL
     uint8_t len = 0x10 ; // 1 << 4
+
+	if(g_model.protocol == PROTO_CRSF){
+		count = 7;
+		putPcmPart(len + len_gl); //start bit
+		//lev = 1;
+		//len += 0x10;
+		bool skipStopBit=0;
+		if(b & 0x01){
+			skipStopBit=1;
+		}
+		for( uint8_t i=0; i<=count; i++)
+		{
+			bool nlev = b & 0x80; //msb first (Big endian)
+			if(lev == nlev)
+			{
+				len += 0x10;
+			}
+			else
+			{
+				putPcmPart(len);
+				len = 0x10;
+				lev = nlev;
+			}
+			b = (b<<1);
+		}
+		if(skipStopBit){
+			len_gl = len;
+		}
+		else{
+			putPcmPart( len);
+			len_gl = 0;
+		}
+		return;
+	}
 
 	for( uint8_t i=0; i<=count; i++)
 	{ //8Bits + Stop=1
@@ -1250,18 +1384,29 @@ void setupPulsesSerial(void)
 	}
 	else
 	{ // SBUS & MULTI
-		pass_bitlen = BITLEN_SBUS ;
+		if(protocol == PROTO_CRSF){
+			pass_bitlen = BITLEN_CRSF;
+		}else{
+			pass_bitlen = BITLEN_SBUS ;
+		}
 		uint8_t outputbitsavailable = 0 ;
 		__uint24 outputbits = 0 ;
 		uint8_t i ;
+		uint8_t CrsfTxCrcBuffer[30];
+		uint8_t crsfBuff_cnt = 0;
+		uint8_t payload_size;
+		if(protocol == PROTO_CRSF) payload_size = 8;
+		else payload_size = 16;
+
 #ifdef MULTI_PROTOCOL
 		if ( protocol == PROTO_SBUS )
 #endif // MULTI_PROTOCOL
 		if (protocol == PROTO_CRSF )
 		{
-			sendByteSerial(0xC8) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
-			sendByteSerial(13) ;	//CRSF frame size: 8x11bits +  frametype + crc
-			sendByteSerial(0x16) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
+			sendByteSerial(CRSF_ADDRESS_FLIGHT_CONTROLLER) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
+			sendByteSerial(CRSF_FRAME_SIZE(payload_size)) ;	//CRSF frame size: 8x11bits +  frametype + crc = 13
+			sendByteSerial(CRSF_FRAMETYPE_RC_CHANNELS_PACKED) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
+			CrsfTxCrcBuffer[crsfBuff_cnt++] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
 		}else
 			sendByteSerial(0x0F) ;
 #ifdef MULTI_PROTOCOL
@@ -1298,8 +1443,7 @@ void setupPulsesSerial(void)
 #endif // MULTI_PROTOCOL
 		
 		uint8_t startChan = g_model.ppmStart ;
-
-		for ( i = 0 ; i < 8 ; i += 1 )		//Default 16 channels, my CRSF: 8 channels
+		for ( i = 0 ; i < payload_size ; i += 1 )		//Default 16 channels, my CRSF: 8 channels
 		{
 			int16_t x = g_chans512[startChan] ;
 #ifdef FAILSAFE			
@@ -1356,6 +1500,8 @@ void setupPulsesSerial(void)
 			{
 				uint8_t j = outputbits ;
 				sendByteSerial(j) ;
+				if(protocol == PROTO_CRSF)
+					CrsfTxCrcBuffer[crsfBuff_cnt++] = j;
 				outputbits >>= 8 ;
 				outputbitsavailable -= 8 ;
 			}
@@ -1364,18 +1510,25 @@ void setupPulsesSerial(void)
 		if ( protocol == PROTO_SBUS )
 #endif // MULTI_PROTOCOL
 		{
-			sendByteSerial(0);
-			sendByteSerial(0);
+			if(protocol == PROTO_CRSF){
+				sendByteSerial(CalcCRC(CrsfTxCrcBuffer, crsfBuff_cnt));
+			}else{
+				sendByteSerial(0);
+				sendByteSerial(0);
+			}
 		}
 #ifdef MULTI_PROTOCOL
 	  else
 #endif // MULTI_PROTOCOL
+
 		{
+#ifdef MULTI_PROTOCOL
 			uint8_t exByte = 0 ;
 			exByte |= subProtocol & 0xC0 ;
 			exByte |= g_model.exRxNum << 4 ;
 			exByte |= g_eeGeneral.multiTelInvert << 3 ;
 			sendByteSerial(exByte);
+#endif
 		}
 	}
 #endif // SBUS_PROTOCOL & MULTI_PROTOCOL
@@ -1389,6 +1542,16 @@ void setupPulsesSerial(void)
 		*(ptrControl->PcmPtr - 1) |= 0xF0 ;
 	}
 	Serial_pulsePtr = pulses2MHz.pbyte ;
+}
+
+uint8_t CalcCRC(volatile uint8_t *data, int length)
+{
+    uint8_t crc = 0;
+    for (uint8_t i = 0; i < length; i++)
+    {
+        crc = crc8tab[crc ^ *data++];
+    }
+    return crc;
 }
 
 /*

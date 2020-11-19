@@ -37,6 +37,8 @@ MCU = atmega64
 endif
 endif
 
+MCU = atmega64
+
 # Processor frequency.
 F_CPU = 16000000
 
@@ -120,7 +122,7 @@ HELI = NO
 
 TEMPLATES = NO
 
-NOPOTSCROLL =
+NOPOTSCROLL = 
 
 CUSTOM9X = NO
 
@@ -379,6 +381,7 @@ CFLAGS += -O$(OPT)
 #CFLAGS += -mshort-calls
 CFLAGS += -funsigned-char
 CFLAGS += -funsigned-bitfields
+CFLAGS += -save-temps
 CFLAGS += -fpack-struct
 CFLAGS += -fshort-enums
 #CFLAGS += -fno-unit-at-a-time

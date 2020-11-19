@@ -32,7 +32,7 @@
 
 // Multi protocol feature
 #ifndef NMEA
-#define MULTI_PROTOCOL	1
+//#define MULTI_PROTOCOL	1
 #endif
 
 #define SAFETY_ONLY		1
@@ -52,11 +52,16 @@
  #endif
  #define REMOVE_FROM_64FRSKY  1
 #else
- #define QUICK_SELECT         1
- #define SERIAL_VOICE         1
- #define CHECK_MOVED_SWITCH   1
+ //#define QUICK_SELECT         1
+ //#define SERIAL_VOICE         1
+ //#define CHECK_MOVED_SWITCH   1
  #define SWITCH_MAPPING       1
 #endif
+
+#define MINIMISE_CODE        1
+ #define NOPOTSCROLL          1
+ #define REMOVE_FROM_64FRSKY  1
+  //#define NOSAFETY_A_OR_V      1
 //#define NOGPSALT	1
 
 #ifdef XSW_MOD
@@ -71,7 +76,7 @@
 #endif
 
 //#if defined(CPUM128) || defined(CPUM2561) || defined(V2)
-#define R9M_SUPPORT		1
+//#define R9M_SUPPORT		1
 //#endif
 
 #if defined(CPUM128) || defined(CPUM2561)
@@ -716,9 +721,8 @@ uint8_t IS_EXPO_THROTTLE( uint8_t x ) ;
 #define PROTO_PPMSIM     4
  #ifdef SBUS_PROTOCOL	
 #define PROTO_SBUS       5
- #ifdef CRSF_PROTOCOL
-#define PROTO_CRSF 		 5
-#define PROT_MAX         5
+#define PROTO_CRSF 		 6
+#define PROT_MAX         6
  #else
 #define PROT_MAX         4
  #endif // SBUS_PROTOCOL
@@ -732,7 +736,7 @@ uint8_t IS_EXPO_THROTTLE( uint8_t x ) ;
  #endif // SBUS_PROTOCOL
 #else
  #ifdef SBUS_PROTOCOL	
-#define PROT_STR "\006PPM   XJT   DSM2  PPM16 PPMSIMSBUS  "
+#define PROT_STR "\006PPM   XJT   DSM2  PPM16 PPMSIMSBUS  CRSF  "
  #else
 #define PROT_STR "\006PPM   XJT   DSM2  PPM16 PPMSIM"
  #endif // SBUS_PROTOCOL
