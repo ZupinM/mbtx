@@ -667,6 +667,7 @@ PACK(typedef struct t_ModelData {
     int8_t    trimSw;
     uint8_t   beepANACenter;        // 1<<0->A1.. 1<<6->A7
     uint8_t   pulsePol:1;
+    uint8_t   crsfBaudrate:1;
     uint8_t   extendedLimits:1;
     uint8_t   swashInvertELE:1;
     uint8_t   swashInvertAIL:1;

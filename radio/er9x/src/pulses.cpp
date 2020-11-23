@@ -14,7 +14,8 @@ extern struct t_latency g_latency ;
 
 #define BITLEN_SERIAL (8*2) //125000 Baud
 #define BITLEN_SBUS (10*2) //100000 Baud
-#define BITLEN_CRSF (5) //400000 Baud	
+#define BITLEN_CRSF400 (5) //400000 Baud	
+#define BITLEN_CRSF100 (20) //400000 Baud
 
 union p2mhz_t 
 {
@@ -252,9 +253,9 @@ void setupPulses()
 #endif // SBUS_PROTOCOL
         case PROTO_DSM2:
             set_timer3_capture() ;
-            OCR1C = 80 ;			// 100 uS
-            TCNT1 = 100 ;			// Past the OCR1C value
-            ICR1 = 10000 ;		// Next frame starts in 11/22 mS
+            OCR1C = 200 ;			// 100 uS
+            TCNT1 = 300 ;			// Past the OCR1C value
+            ICR1 = 44000 ;		// Next frame starts in 11/22 mS
 #ifdef CPUM2561
             TIMSK1 |= (1<<ICIE1) ;		// Enable CAPT
 #else
@@ -401,7 +402,7 @@ void setupPulsesPPM( uint8_t proto )
 }
 
 //uint8_t pulseIndex_gl = 0;
-uint8_t pulseLengths[120];
+uint8_t pulseLengths[255];
 uint8_t *pulsePointer = pulseLengths;
 
 ISR(TIMER1_CAPT_vect) //2MHz pulse generation
@@ -430,9 +431,14 @@ PULSE:
 	}
 	if (g_model.protocol == PROTO_CRSF)
 	{
-       PORTB |=  (1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
+		ICR1 = 255;		//Delay without extra registers pushed to stack
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;
+		ICR1 = 255;	
+       PORTB &=  ~(1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
 	   pulsePointer = pulseLengths;
-	   ICR1 = 255;
 	}
 	if (g_model.protocol == PROTO_SBUS &&  *pulsePointer > 200 )
 	{
@@ -516,11 +522,11 @@ PULSE:
 
 void SerialPulseCalc(void){
 	uint8_t *y = pulseLengths;
-	while(1){
+	while(y < (pulseLengths+255)){
 		uint8_t x ;
 		x = *Serial_pulsePtr;      // Byte size
 		*y = x & 0x0F ;
-		if ( *y == 15 )
+		if ( *y > 9 ) //Pulse shouldnt be longer than 9bits (start bit or stop bit are different from 8bit data+parity)
 		{
 			*y = 255 ;
 			break;
@@ -584,12 +590,12 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 	 	if (OCR1C<255)
 		{
 		 	if(g_model.protocol == PROTO_CRSF)
-				OCR1C = t-1500 ;  //delay setup pulses to reduce sytem latency (calculate pulses 250us before generating them)
+				OCR1C = t-1800 ;  //delay setup pulses to reduce sytem latency (calculate pulses 250us before generating them)
 			else
 				OCR1C = t-3200;
 		}
 		else
-  		{
+  		{	
 			setupPulses();
 			SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
@@ -1243,6 +1249,7 @@ Serial: 100000 Baud 8e2      _ xxxx xxxx p --
 //  }
 //}
 uint8_t len_gl;
+uint8_t lastByte;
 
 static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 {
@@ -1272,12 +1279,12 @@ static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 		//lev = 1;
 		//len += 0x10;
 		bool skipStopBit=0;
-		if(b & 0x01){
+		if(b & 0x80){
 			skipStopBit=1;
 		}
 		for( uint8_t i=0; i<=count; i++)
 		{
-			bool nlev = b & 0x80; //msb first (Big endian)
+			bool nlev = b & 0x01; //lsb first
 			if(lev == nlev)
 			{
 				len += 0x10;
@@ -1288,9 +1295,9 @@ static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 				len = 0x10;
 				lev = nlev;
 			}
-			b = (b<<1);
+			b = (b>>1);
 		}
-		if(skipStopBit){
+		if(skipStopBit && !lastByte){
 			len_gl = len;
 		}
 		else{
@@ -1385,7 +1392,15 @@ void setupPulsesSerial(void)
 	else
 	{ // SBUS & MULTI
 		if(protocol == PROTO_CRSF){
-			pass_bitlen = BITLEN_CRSF;
+			if(g_model.crsfBaudrate)
+			{
+				pass_bitlen = BITLEN_CRSF100;
+			}
+			else
+			{
+				pass_bitlen = BITLEN_CRSF400;
+			}
+			
 		}else{
 			pass_bitlen = BITLEN_SBUS ;
 		}
@@ -1402,7 +1417,8 @@ void setupPulsesSerial(void)
 		if ( protocol == PROTO_SBUS )
 #endif // MULTI_PROTOCOL
 		if (protocol == PROTO_CRSF )
-		{
+		{	
+			lastByte = 0;
 			sendByteSerial(CRSF_ADDRESS_FLIGHT_CONTROLLER) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
 			sendByteSerial(CRSF_FRAME_SIZE(payload_size)) ;	//CRSF frame size: 8x11bits +  frametype + crc = 13
 			sendByteSerial(CRSF_FRAMETYPE_RC_CHANNELS_PACKED) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
@@ -1511,6 +1527,7 @@ void setupPulsesSerial(void)
 #endif // MULTI_PROTOCOL
 		{
 			if(protocol == PROTO_CRSF){
+				lastByte = 1;
 				sendByteSerial(CalcCRC(CrsfTxCrcBuffer, crsfBuff_cnt));
 			}else{
 				sendByteSerial(0);

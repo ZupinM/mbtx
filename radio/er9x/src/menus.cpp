@@ -13297,8 +13297,19 @@ extern uint8_t getExpectedSwitchState( uint8_t i ) ;
 				y += FH ;
 				subN++;
 			}
+#ifdef CRSF_PROTOCOL
+		if(protocol == PROTO_CRSF)
+		{
+  		 	lcd_puts_Pleft(    y, PSTR(STR_CRSF_BAUD));
+				
+				g_model.crsfBaudrate = checkIndexedV( y, PSTR(FWx15"\001"STR_BAUD_VALUE), g_model.crsfBaudrate, subN ) ;
+				y += FH ;
+				subN++;
+
+		}
+#endif
 #ifdef SBUS_PROTOCOL	
-  		if ( ( ppmTypeProto ) || (protocol == PROTO_SBUS) || (protocol == PROTO_CRSF)) //if( (protocol == PROTO_PPM) || (protocol == PROTO_PPM16) || (protocol == PROTO_PPMSIM) )
+  		if ( ( ppmTypeProto ) || (protocol == PROTO_SBUS) ) //if( (protocol == PROTO_PPM) || (protocol == PROTO_PPM16) || (protocol == PROTO_PPMSIM) )
 #else
   		if ( ppmTypeProto )
 #endif
