@@ -270,7 +270,7 @@
 //#define STR_PPM_1ST_CHAN   "1st Chan"
 #define STR_SHIFT_SEL      "Polarity"
 #define STR_CRSF_BAUD      "Baud rate"
-#define STR_BAUD_VALUE     "\006400kHz100kHz"
+#define STR_BAUD_VALUE     "\006400000115200"
 // STR_POS_NEG indexed 3 chars each
 #define STR_POS_NEG        "\003POSNEG"
 #define STR_VOL_PAGE				STR_E_LIMITS "\037" "Thr. Default\037" STR_THR_REVERSE "\037" "Throttle Open" "\037" STR_T_TRIM "\037" STR_T_EXPO

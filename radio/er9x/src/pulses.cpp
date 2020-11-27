@@ -15,7 +15,7 @@ extern struct t_latency g_latency ;
 #define BITLEN_SERIAL (8*2) //125000 Baud
 #define BITLEN_SBUS (10*2) //100000 Baud
 #define BITLEN_CRSF400 (5) //400000 Baud	
-#define BITLEN_CRSF100 (20) //400000 Baud
+#define BITLEN_CRSF115 (17) //115200 Baud
 
 union p2mhz_t 
 {
@@ -443,7 +443,7 @@ PULSE:
 	   pulsePointer = pulseLengths;
 	   return;
 	}
-	if (g_model.protocol == PROTO_SBUS &&  *pulsePointer > 200 )
+	if (*pulsePointer > 200 ) //SBUS and CRSF115
 	{
        PORTB &=  ~(1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
 	   pulsePointer = pulseLengths; 
@@ -525,13 +525,12 @@ PULSE:
 
 void SerialPulseCalc(void){
 	uint8_t *y = pulseLengths;
-	while(y < (pulseLengths+255)){  //buffer owerflow limit
+	while(y < (pulseLengths+254)){  //buffer owerflow limit
 		uint8_t x ;
 		x = *Serial_pulsePtr;      // Byte size
 		*y = x & 0x0F ;
-		if ( *y > 9 ) //Pulse shouldnt be longer than 9bits (start bit or stop bit are different from 8bit data+parity)
+		if ( *y > 8 ) //Pulse shouldnt be longer than 9bits (start bit or stop bit are different from 8bit data+parity)
 		{
-			*y = 255 ;
 			break;
 		}
 
@@ -542,13 +541,14 @@ void SerialPulseCalc(void){
 		x /= 16 ; // same as x >>= 4 but less code
 		if ( x == 0 )
 		{
-		Serial_pulsePtr += 1 ;
+			Serial_pulsePtr += 1 ;
 		}
 		else
 		{
 			*Serial_pulsePtr = x ;
 		}	
 	}
+	*y = 255;
 }
 
 
@@ -602,6 +602,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 			setupPulses();
 			SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
+			heartbeat |= HEART_TIMER2Mhz ;
  		}
   }
   else		// must be PXX
@@ -1251,8 +1252,6 @@ Serial: 100000 Baud 8e2      _ xxxx xxxx p --
 //    ptrControl->PcmBitCount = ptrControl->PcmByte = 0 ;
 //  }
 //}
-uint8_t len_gl;
-uint8_t lastByte;
 
 static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 {
@@ -1387,7 +1386,7 @@ void setupPulsesSerial(void)
 		if(protocol == PROTO_CRSF){
 			if(g_model.crsfBaudrate)
 			{
-				pass_bitlen = BITLEN_CRSF100;
+				pass_bitlen = BITLEN_CRSF115;
 			}
 			else
 			{
