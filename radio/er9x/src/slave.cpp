@@ -610,7 +610,7 @@ static void ioinit0()
 #ifdef CPUM2561
 	if ( mcusr == 0 )
 	{
-    wdt_enable(2S) ;
+    wdt_enable(WDTO_60MS) ;
 	}
 #endif
 
@@ -832,7 +832,7 @@ int main(void)
 
 	lcd_init() ;
 
-  wdt_enable(WDTO_2S);
+  wdt_enable(WDTO_500MS);
 	slave() ;
 }
 

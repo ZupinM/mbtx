@@ -1,0 +1,10 @@
+diff a/radio/er9x/src/er9x.cpp b/radio/er9x/src/er9x.cpp	(rejected hunks)
+@@ -4544,7 +4544,7 @@
+ #ifdef CPUM2561
+ 	if ( mcusr == 0 )
+ 	{
+-    wdt_enable(WDTO_60MS) ;
++    wdt_enable(WDTO_2S) ;
+ 	}
+ #endif
+ 

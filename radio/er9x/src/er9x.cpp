@@ -4405,7 +4405,7 @@ ISR(TIMER0_COMP_vect, ISR_NOBLOCK) //10ms timer
 		check_frsky() ;
 #endif
         heartbeat |= HEART_TIMER10ms ;
-		heartbeat |= HEART_TIMER2Mhz ;
+		//heartbeat |= HEART_TIMER2Mhz ;
 	// See if time for alarm checking
 		struct t_alarmControl *pac = &AlarmControl ;
 		FORCE_INDIRECT(pac) ;
@@ -4544,7 +4544,7 @@ extern uint8_t serialDat0 ;
 #ifdef CPUM2561
 	if ( mcusr == 0 )
 	{
-    wdt_enable(WDTO_2S) ;
+    wdt_enable(WDTO_60MS) ;
 	}
 #endif
 
@@ -4850,7 +4850,7 @@ where( 'D' ) ;
 #ifdef GREEN_CHIP
     wdt_enable(WDTO_2S);
 #else
-    wdt_enable(WDTO_2S);
+    wdt_enable(WDTO_500MS);
 #endif
 
     g_menuStack[1] = menuProcModelSelect ;	// this is so the first instance of [MENU LONG] doesn't freak out!

@@ -249,12 +249,15 @@ void setupPulses()
 #endif // MULTI_PROTOCOL
 #ifdef CRSF_PROTOCOL
 		case PROTO_CRSF:	
+		TCCR3B = 0;
+		goto NO_TIMER3;
 #endif
 #ifdef SBUS_PROTOCOL
         case PROTO_SBUS:
 #endif // SBUS_PROTOCOL
         case PROTO_DSM2:
             set_timer3_capture() ;
+NO_TIMER3:
             OCR1C = 200 ;			// 100 uS
             TCNT1 = 300 ;			// Past the OCR1C value
             ICR1 = 44000 ;		// Next frame starts in 11/22 mS
@@ -529,7 +532,7 @@ void SerialPulseCalc(void){
 		uint8_t x ;
 		x = *Serial_pulsePtr;      // Byte size
 		*y = x & 0x0F ;
-		if ( *y > 8 ) //Pulse shouldnt be longer than 9bits (start bit or stop bit are different from 8bit data+parity)
+		if ( ((*y > 9) && (g_model.protocol== PROTO_CRSF)) || (*y > 11) ) //Pulse shouldnt be longer than 9bits (start bit or stop bit are different from 8bit data+parity+start/stop)
 		{
 			break;
 		}
