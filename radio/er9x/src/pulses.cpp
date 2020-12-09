@@ -70,6 +70,7 @@ void set_timer3_ppm( void ) ;
 void setupPulsesPPM( uint8_t proto ) ;
 static void setupPulsesPXX( void ) ;
 static void sendByteSerial(uint8_t b) ;
+void ReadSticks(void);
 
 //uint16_t PulseTotal ;
 
@@ -596,12 +597,15 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 	 	if (OCR1C<255)
 		{
 		 	if(g_model.protocol == PROTO_CRSF)
-				OCR1C = t-1800 ;  //delay setup pulses to reduce sytem latency (calculate pulses 250us before generating them)
+				OCR1C = t-2000 ;  //1800-for no low latency sticks. delay setup pulses to reduce sytem latency (calculate pulses 1ms before generating them)
 			else
 				OCR1C = t-3200;
 		}
 		else
   		{	
+			if(g_model.protocol == PROTO_CRSF){
+				ReadSticks(); //low latency sticks
+		  	}
 			setupPulses();
 			SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
@@ -612,6 +616,14 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
   {
     setupPulses() ;
   }
+}
+
+void ReadSticks(void)
+{										//AETR1234
+	for(int i=1 ; i<5 ; i++)
+	{
+		g_chans512[i] = scaleAnalog(4-i);
+	}
 }
 
 // This interrupt for PXX
