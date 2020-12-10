@@ -194,7 +194,7 @@ void setupPulses()
 	uint8_t required_protocol ;
   required_protocol = g_model.protocol ;
 	// Sort required_protocol depending on student mode and PPMSIM allowed
-
+#ifndef ULTRA_CRSF
 	if ( g_eeGeneral.enablePpmsim )
 	{
 		if ( SlaveMode )
@@ -206,6 +206,7 @@ void setupPulses()
 	{
 		required_protocol = PROTO_NONE ;
 	}
+#endif
 
     //	SPY_ON;
     if ( Current_protocol != required_protocol )
@@ -435,7 +436,9 @@ PULSE:
 		pulsePointer++;
 		return;
 	}
+#ifndef ULTRA_CRSF	 //preserve registers for faster execution
 	if (g_model.protocol == PROTO_CRSF)
+#endif
 	{					//last bit is too short, extend it
 		ICR1 = 255;		//Delay without extra registers pushed to stack
 		ICR1 = 255;
@@ -447,6 +450,7 @@ PULSE:
 	   pulsePointer = pulseLengths;
 	   return;
 	}
+	#ifndef ULTRA_CRSF
 	if (*pulsePointer > 200 ) //SBUS and CRSF115
 	{
        PORTB &=  ~(1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
@@ -454,6 +458,7 @@ PULSE:
 	   return;
 	}
 	pulsePointer++; //SBUS
+	#endif
 
 }
 /*PULSE:
@@ -597,15 +602,19 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 	 	if (OCR1C<255)
 		{
 		 	if(g_model.protocol == PROTO_CRSF)
-				OCR1C = t-2000 ;  //1800-for no low latency sticks. delay setup pulses to reduce sytem latency (calculate pulses 1ms before generating them)
+#ifdef ULTRA_CRSF
+				OCR1C = t-1600;
+#else
+				OCR1C = t-1800 ;  //1800-for no low latency sticks. delay setup pulses to reduce sytem latency (calculate pulses 1ms before generating them)
+#endif
 			else
 				OCR1C = t-3200;
 		}
 		else
   		{	
-			if(g_model.protocol == PROTO_CRSF){
+#ifdef ULTRA_CRSF
 				ReadSticks(); //low latency sticks
-		  	}
+#endif
 			setupPulses();
 			SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
@@ -1271,27 +1280,12 @@ Serial: 100000 Baud 8e2      _ xxxx xxxx p --
 static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 {
     bool    lev = 0;
-	uint8_t parity = 0x80 ;
 	uint8_t count = 8 ;
-#if defined(SBUS_PROTOCOL) || defined(MULTI_PROTOCOL)
-	uint8_t bitLen ;
-	if ( g_model.protocol != PROTO_DSM2 )
-	{ // SBUS & MULTI
-		parity = 0 ;
-		bitLen = b ;
-		for( uint8_t i=0; i<8; i++)
-		{
-			parity += bitLen & 0x80 ;
-			bitLen <<= 1 ;
-		}
-		parity &= 0x80 ;
-		count = 9 ;
-	}
-#endif // SBUS_PROTOCOL & MULTI_PROTOCOL
     uint8_t len = 0x10 ; // 1 << 4
-
-	if(g_model.protocol == PROTO_CRSF){
-		count = 8;
+#ifndef ULTRA_CRSF
+	if(g_model.protocol == PROTO_CRSF)
+#endif
+	{
 		for( uint8_t i=0; i<=count; i++)
 		{ //8Bits + Stop=1
 			bool nlev = b & 1; //lsb first
@@ -1312,6 +1306,22 @@ static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 
 	}
 
+	uint8_t parity = 0x80 ;
+#if defined(SBUS_PROTOCOL) || defined(MULTI_PROTOCOL)
+	uint8_t bitLen ;
+	if ( g_model.protocol != PROTO_DSM2 )
+	{ // SBUS & MULTI
+		parity = 0 ;
+		bitLen = b ;
+		for( uint8_t i=0; i<8; i++)
+		{
+			parity += bitLen & 0x80 ;
+			bitLen <<= 1 ;
+		}
+		parity &= 0x80 ;
+		count = 9 ;
+	}
+#endif // SBUS_PROTOCOL & MULTI_PROTOCOL
 
 
 	for( uint8_t i=0; i<=count; i++)
@@ -1352,6 +1362,8 @@ void setupPulsesSerial(void)
 	ptrControl->Shift = 1 ;
 	ptrControl->Limit = 2 ;
 
+	uint8_t protocol = g_model.protocol ;
+#ifndef ULTRA_CRSF
 //    uint8_t counter ;
 	uint8_t serialdat0copy;
 	//	CSwData &cs = g_model.customSw[NUM_CSW-1];
@@ -1362,7 +1374,6 @@ void setupPulsesSerial(void)
 
 	serialdat0copy = serialDat0 ;		// Fetch byte once, saves flash
 #if defined(SBUS_PROTOCOL) || defined(MULTI_PROTOCOL)
-	uint8_t protocol = g_model.protocol ;
 	if( protocol == PROTO_DSM2)
 	{
 #endif // SBUS_PROTOCOL & MULTI_PROTOCOL
@@ -1411,6 +1422,13 @@ void setupPulsesSerial(void)
 		}else{
 			pass_bitlen = BITLEN_SBUS ;
 		}
+#endif  //SBUS, Multi
+#endif // ifndef ULTRA_CRSF
+#ifdef ULTRA_CRSF
+	{
+		pass_bitlen = BITLEN_CRSF400;
+#endif
+#if defined(SBUS_PROTOCOL) || defined(MULTI_PROTOCOL)
 		uint8_t outputbitsavailable = 0 ;
 		__uint24 outputbits = 0 ;
 		uint8_t i ;
@@ -1423,14 +1441,20 @@ void setupPulsesSerial(void)
 #ifdef MULTI_PROTOCOL
 		if ( protocol == PROTO_SBUS )
 #endif // MULTI_PROTOCOL
+#ifndef ULTRA_CRSF
 		if (protocol == PROTO_CRSF )
+#endif
 		{	
 			sendByteSerial(CRSF_ADDRESS_FLIGHT_CONTROLLER) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
 			sendByteSerial(CRSF_FRAME_SIZE(payload_size)) ;	//CRSF frame size: 8x11bits +  frametype + crc = 13
 			sendByteSerial(CRSF_FRAMETYPE_RC_CHANNELS_PACKED) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
 			CrsfTxCrcBuffer[crsfBuff_cnt++] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
-		}else
+		}
+#ifndef ULTRA_CRSF
+		else{
 			sendByteSerial(0x0F) ;
+		}
+#endif
 #ifdef MULTI_PROTOCOL
 		else
 		{
@@ -1532,12 +1556,19 @@ void setupPulsesSerial(void)
 		if ( protocol == PROTO_SBUS )
 #endif // MULTI_PROTOCOL
 		{
-			if(protocol == PROTO_CRSF){
+#ifndef ULTRA_CRSF
+			if(protocol == PROTO_CRSF)
+#endif
+			{
 				sendByteSerial(CalcCRC(CrsfTxCrcBuffer, crsfBuff_cnt));
-			}else{
+			}
+#ifndef ULTRA_CRSF
+			else
+			{
 				sendByteSerial(0);
 				sendByteSerial(0);
 			}
+#endif
 		}
 #ifdef MULTI_PROTOCOL
 	  else
@@ -1554,7 +1585,7 @@ void setupPulsesSerial(void)
 		}
 	}
 #endif // SBUS_PROTOCOL & MULTI_PROTOCOL
-		
+
   if ( ptrControl->PcmBitCount )
 	{
 		*ptrControl->PcmPtr = 0x0F ;

@@ -722,6 +722,7 @@ uint8_t IS_EXPO_THROTTLE( uint8_t x ) ;
  #ifdef SBUS_PROTOCOL	
 #define PROTO_SBUS       5
 #define PROTO_CRSF 		 6
+#define ULTRA_CRSF		 1
 #define PROT_MAX         6
  #else
 #define PROT_MAX         4
