@@ -211,7 +211,9 @@ void setupPulses()
     //	SPY_ON;
     if ( Current_protocol != required_protocol )
     {
+#ifndef ULTRA_CRSF
         Current_protocol = required_protocol ;
+#endif
         // switch mode here
         TCCR1B = 0 ;			// Stop counter
         TCNT1 = 0 ;
@@ -534,6 +536,9 @@ PULSE:
 
 void SerialPulseCalc(void){
 	uint8_t *y = pulseLengths;
+	if(Current_protocol == g_model.protocol){
+		y += 3;
+	}
 	while(y < (pulseLengths+254)){  //buffer owerflow limit
 		uint8_t x ;
 		x = *Serial_pulsePtr;      // Byte size
@@ -603,7 +608,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 		{
 		 	if(g_model.protocol == PROTO_CRSF)
 #ifdef ULTRA_CRSF
-				OCR1C = t-1600;
+				OCR1C = t-1700;
 #else
 				OCR1C = t-1800 ;  //1800-for no low latency sticks. delay setup pulses to reduce sytem latency (calculate pulses 1ms before generating them)
 #endif
@@ -619,6 +624,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 			SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
 			heartbeat |= HEART_TIMER2Mhz ;
+			Current_protocol = g_model.protocol;
  		}
   }
   else		// must be PXX
@@ -1443,18 +1449,22 @@ void setupPulsesSerial(void)
 #endif // MULTI_PROTOCOL
 #ifndef ULTRA_CRSF
 		if (protocol == PROTO_CRSF )
+#else
+		CrsfTxCrcBuffer[crsfBuff_cnt] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
+		if(Current_protocol != g_model.protocol)
 #endif
 		{	
 			sendByteSerial(CRSF_ADDRESS_FLIGHT_CONTROLLER) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
 			sendByteSerial(CRSF_FRAME_SIZE(payload_size)) ;	//CRSF frame size: 8x11bits +  frametype + crc = 13
 			sendByteSerial(CRSF_FRAMETYPE_RC_CHANNELS_PACKED) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
-			CrsfTxCrcBuffer[crsfBuff_cnt++] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
+			CrsfTxCrcBuffer[crsfBuff_cnt] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
 		}
 #ifndef ULTRA_CRSF
 		else{
 			sendByteSerial(0x0F) ;
 		}
 #endif
+		crsfBuff_cnt++;
 #ifdef MULTI_PROTOCOL
 		else
 		{
@@ -1594,7 +1604,12 @@ void setupPulsesSerial(void)
 	{
 		*(ptrControl->PcmPtr - 1) |= 0xF0 ;
 	}
-	Serial_pulsePtr = pulses2MHz.pbyte ;
+#ifdef ULTRA_CRSF
+	Serial_pulsePtr = pulses2MHz.pbyte + 3 ;
+#else
+	Serial_pulsePtr = pulses2MHz.pbyte;
+#endif
+	
 }
 
 uint8_t CalcCRC(volatile uint8_t *data, int length)
