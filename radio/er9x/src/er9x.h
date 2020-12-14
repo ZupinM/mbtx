@@ -62,7 +62,7 @@
  #define NOPOTSCROLL          1
  #define REMOVE_FROM_64FRSKY  1
   //#define NOSAFETY_A_OR_V      1
-//#define NOGPSALT	1
+#define NOGPSALT	1
 
 #ifdef XSW_MOD
 #undef	SWITCH_MAPPING
@@ -109,6 +109,8 @@
 
 #define SBUS_PROTOCOL	1
 #define CRSF_PROTOCOL	1
+#define NO_SPLASH 		1
+#define NO_PCM			1
 
 
 // Bits in SystemOptions

@@ -30,8 +30,10 @@ const prog_uchar APM s9xsplashMarker[] = {
 "Spls"
 };
 #else
+#ifndef NO_SPLASH
 #include "s9xsplash.lbm"
 #include "splashmarker.h"
+#endif
 #endif
 
 #if defined(CPUM128) || defined(CPUM2561)
@@ -4817,7 +4819,9 @@ extern uint8_t serialDat0 ;
 			{
 				audioVoiceDefevent( AU_TADA, V_HELLO ) ;
       }
+#ifndef NO_SPLASH
   	  doSplash();
+#endif
     }
 #ifdef WHERE_DEBUG
 where( 'A' ) ;

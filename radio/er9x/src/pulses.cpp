@@ -211,7 +211,9 @@ void setupPulses()
     //	SPY_ON;
     if ( Current_protocol != required_protocol )
     {
+#ifndef ULTRA_CRSF
         Current_protocol = required_protocol ;
+#endif
         // switch mode here
         TCCR1B = 0 ;			// Stop counter
         TCNT1 = 0 ;
@@ -531,6 +533,16 @@ PULSE:
 }*/
 
 
+uint8_t *crsfPtr = pulseLengths;
+
+void putCrsfPart(uint8_t value){
+	value >>= 4;
+
+	*crsfPtr = value * pass_bitlen;
+	*crsfPtr -= 1;
+	crsfPtr ++;
+
+}
 
 void SerialPulseCalc(void){
 	uint8_t *y = pulseLengths;
@@ -603,7 +615,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 		{
 		 	if(g_model.protocol == PROTO_CRSF)
 #ifdef ULTRA_CRSF
-				OCR1C = t-1600;
+				OCR1C = t-1500;
 #else
 				OCR1C = t-1800 ;  //1800-for no low latency sticks. delay setup pulses to reduce sytem latency (calculate pulses 1ms before generating them)
 #endif
@@ -613,12 +625,12 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 		else
   		{	
 #ifdef ULTRA_CRSF
-				ReadSticks(); //low latency sticks
+			ReadSticks(); //low latency sticks
 #endif
 			setupPulses();
-			SerialPulseCalc();
+			//SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
-			heartbeat |= HEART_TIMER2Mhz ;
+			heartbeat |= HEART_TIMER2Mhz ;		
  		}
   }
   else		// must be PXX
@@ -829,6 +841,7 @@ static void crc( uint8_t data )
 
 void putPcmPart( uint8_t value )
 {
+#ifndef NO_PCM
 		struct t_pcm_control *ptrControl ;
 		uint8_t x ;
 
@@ -848,21 +861,25 @@ void putPcmPart( uint8_t value )
         *ptrControl->PcmPtr++ = ptrControl->PcmByte ;
         ptrControl->PcmBitCount = ptrControl->PcmByte = 0 ;
     }
+#endif
 }
 
 
 static void putPcmFlush()
 {
+#ifndef NO_PCM
   while ( PcmControl.PcmBitCount != 0 )
   {
   	putPcmPart( 0 ) ; // Empty
   }
   *PcmControl.PcmPtr = 0 ;				// Mark end
 	asm("") ;
+#endif
 }
 
 void putPcmBit( uint8_t bit )
 {
+#ifndef NO_PCM
     if ( bit )
     {
         PcmControl.PcmOnesCount += 1 ;
@@ -877,10 +894,12 @@ void putPcmBit( uint8_t bit )
     {
         putPcmBit( 0 ) ;				// Stuff a 0 bit in
     }
+#endif
 }
 
 void putPcmByte( uint8_t byte )
 {
+#ifndef NO_PCM
     uint8_t i ;
 
     crc( byte ) ;
@@ -890,10 +909,12 @@ void putPcmByte( uint8_t byte )
         putPcmBit( byte & 0x80 ) ;
         byte <<= 1 ;
     }
+#endif
 }
 
 void putPcmHead()
 {
+#ifndef NO_PCM
 	uint8_t i ;
     // send 7E, do not CRC
     // 01111110
@@ -903,6 +924,7 @@ void putPcmHead()
     	putPcmPart( 0x80 ) ;
 		}
     putPcmPart( 0xC0 ) ;
+#endif
 }
 
 uint16_t scaleForPXX( uint8_t i )
@@ -1295,13 +1317,13 @@ static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 			}
 			else
 			{
-				putPcmPart( len ) ;
+				putCrsfPart( len ) ;
 				len = 0x10 ;
 				lev = nlev ;
 			}
 			b = (b>>1) | 0x80 ; //shift in stop bit
 		}
-		putPcmPart( len) ; // 1 stop bits
+		putCrsfPart( len) ; // 1 stop bits
 		return;
 
 	}
@@ -1345,7 +1367,6 @@ static void sendByteSerial(uint8_t b) //max 10changes 0 10 10 10 10 1
 
 void setupPulsesSerial(void)
 {
-	struct t_pcm_control *ptrControl ;
 #ifdef MULTI_PROTOCOL
 	uint8_t packetType ;
 	uint8_t subProtocol ;
@@ -1353,6 +1374,10 @@ void setupPulsesSerial(void)
 	packetType = ( ( (subProtocol) & 0x3F) > 31 ) ? 0x54 : 0x55 ;
 #endif
 
+	uint8_t protocol = g_model.protocol ;
+
+#ifndef ULTRA_CRSF
+	struct t_pcm_control *ptrControl ;
 	ptrControl = &PcmControl ;
 	FORCE_INDIRECT(ptrControl) ;
     
@@ -1362,8 +1387,6 @@ void setupPulsesSerial(void)
 	ptrControl->Shift = 1 ;
 	ptrControl->Limit = 2 ;
 
-	uint8_t protocol = g_model.protocol ;
-#ifndef ULTRA_CRSF
 //    uint8_t counter ;
 	uint8_t serialdat0copy;
 	//	CSwData &cs = g_model.customSw[NUM_CSW-1];
@@ -1443,12 +1466,16 @@ void setupPulsesSerial(void)
 #endif // MULTI_PROTOCOL
 #ifndef ULTRA_CRSF
 		if (protocol == PROTO_CRSF )
+#else
+		CrsfTxCrcBuffer[crsfBuff_cnt++] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
+		if(Current_protocol != g_model.protocol)
 #endif
 		{	
+			crsfPtr = pulseLengths;
 			sendByteSerial(CRSF_ADDRESS_FLIGHT_CONTROLLER) ;	//CRSF sync byte  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8 ??
 			sendByteSerial(CRSF_FRAME_SIZE(payload_size)) ;	//CRSF frame size: 8x11bits +  frametype + crc = 13
 			sendByteSerial(CRSF_FRAMETYPE_RC_CHANNELS_PACKED) ;  //CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
-			CrsfTxCrcBuffer[crsfBuff_cnt++] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
+			//CrsfTxCrcBuffer[crsfBuff_cnt++] = CRSF_FRAMETYPE_RC_CHANNELS_PACKED;
 		}
 #ifndef ULTRA_CRSF
 		else{
@@ -1546,8 +1573,12 @@ void setupPulsesSerial(void)
 			{
 				uint8_t j = outputbits ;
 				sendByteSerial(j) ;
+#ifndef ULTRA_CRSF
 				if(protocol == PROTO_CRSF)
+#endif
+				{
 					CrsfTxCrcBuffer[crsfBuff_cnt++] = j;
+				}
 				outputbits >>= 8 ;
 				outputbitsavailable -= 8 ;
 			}
@@ -1561,6 +1592,9 @@ void setupPulsesSerial(void)
 #endif
 			{
 				sendByteSerial(CalcCRC(CrsfTxCrcBuffer, crsfBuff_cnt));
+				crsfPtr--;
+				*crsfPtr = 0xff; //end of data sequence
+				crsfPtr = pulseLengths + 16; //16 is number of pulses of preamble
 			}
 #ifndef ULTRA_CRSF
 			else
@@ -1586,6 +1620,7 @@ void setupPulsesSerial(void)
 	}
 #endif // SBUS_PROTOCOL & MULTI_PROTOCOL
 
+#ifndef ULTRA_CRSF
   if ( ptrControl->PcmBitCount )
 	{
 		*ptrControl->PcmPtr = 0x0F ;
@@ -1595,6 +1630,9 @@ void setupPulsesSerial(void)
 		*(ptrControl->PcmPtr - 1) |= 0xF0 ;
 	}
 	Serial_pulsePtr = pulses2MHz.pbyte ;
+#else
+	Current_protocol = g_model.protocol ;
+#endif
 }
 
 uint8_t CalcCRC(volatile uint8_t *data, int length)
