@@ -217,7 +217,7 @@ static uint8_t readAilIp()
 		return PINE & (1<<INP_E_AileDR) ;
 	}
 #else
- #if (!(defined(JETI) || defined(FRSKY) || defined(ARDUPILOT) || defined(NMEA)))
+ #if (!(defined(JETI) || defined(FRSKY) || defined(ARDUPILOT) || defined(NMEA) || defined(PIN_REROUTE)))
  	return PINE & (1<<INP_E_AileDR);
  #else
  	return PINC & (1<<INP_C_AileDR);
@@ -870,7 +870,7 @@ bool keyState(EnumKeys enuk)
 				xxx = pine & (1<<INP_E_ThrCt) ;
 			}
 #else
- #if (!(defined(JETI) || defined(FRSKY) || defined(ARDUPILOT) || defined(NMEA)))
+ #if (!(defined(JETI) || defined(FRSKY) || defined(ARDUPILOT) || defined(NMEA) || defined(PIN_REROUTE)))
      case SW_ThrCt  : xxx = pine & (1<<INP_E_ThrCt);
  #else
     case SW_ThrCt  : xxx = PINC & (1<<INP_C_ThrCt); //shad974: rerouted inputs to free up UART0

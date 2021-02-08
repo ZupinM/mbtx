@@ -30,10 +30,8 @@ const prog_uchar APM s9xsplashMarker[] = {
 "Spls"
 };
 #else
-#ifndef NO_SPLASH
 #include "s9xsplash.lbm"
 #include "splashmarker.h"
-#endif
 #endif
 
 #if defined(CPUM128) || defined(CPUM2561)

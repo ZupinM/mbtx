@@ -39,6 +39,8 @@
 
 //#define STACK_TRACE				1
 
+#define PIN_REROUTE 1
+
 // Remove features from M64-FrSky version
 #if ( defined(CPUM64) && defined(FRSKY) )
  #define NOPOTSCROLL          1
