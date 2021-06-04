@@ -8708,21 +8708,24 @@ int16_t scaleAnalog( uint8_t channel )
                                                     g_eeGeneral.calibSpanNeg[channel])));
 #endif
 #endif // SIMU
-	if(v <= -RESX) v = -RESX;
-	if(v >=  RESX) v =  RESX;
-	if ( throttleReversed() )
-	{
-		if ( channel == THR_STICK )
+	if (g_model.protocol != PROTO_CRSF){
+		if(v <= -RESX) v = -RESX;
+		if(v >=  RESX) v =  RESX;
+		if ( throttleReversed() )
 		{
-			v = -v ;
+			if ( channel == THR_STICK )
+			{
+				v = -v ;
+			}
 		}
 	}
 	return v ;
 }
 
+int16_t  trimA[4];
 void perOut(int16_t *chanOut, uint8_t att)
 {
-  int16_t  trimA[4];
+  
   uint8_t  anaCenter = 0;
 //    uint16_t d = 0;
 	int16_t trainerThrottleValue = 0 ;
@@ -9168,7 +9171,7 @@ void perOut(int16_t *chanOut, uint8_t att)
 ////								}
 //							}
 							sw = currentSwitchPosition012( sw ) ;
-        			v = ( sw == 0 ) ? -1024 : ( (sw == 1 ) ? 0 : 1024) ;
+        			v = ( sw == 0 ) ? -1022 : ( (sw == 1 ) ? 0 : 1022) ;
 							 
 //							if ( sw )
 //							{
@@ -9213,11 +9216,11 @@ void perOut(int16_t *chanOut, uint8_t att)
 								{
 									sw += SW_AileDR - SW_ID0 ;
 								}
-        				v = keyState((EnumKeys)sw) ? 1024 : -1024 ;
+        				v = keyState((EnumKeys)sw) ? 1023 : -1023 ;
 							}
 							else
 							{
-        				v = keyState(SW_ID0) ? -1024 : (keyState(SW_ID1) ? 0 : 1024) ;
+        				v = keyState(SW_ID0) ? -1023 : (keyState(SW_ID1) ? 0 : 1023) ;
 							}
 #endif
 #endif  // XSW_MOD

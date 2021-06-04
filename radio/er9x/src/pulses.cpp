@@ -447,7 +447,7 @@ PULSE:
 		ICR1 = 255;
 		ICR1 = 255;
 		ICR1 = 255;
-		ICR1 = 255;	
+		ICR1 = 7000;	//Glitches dont stack pulses
        PORTB &=  ~(1<<OUT_B_PPM);      // Make sure pulses are the correct way up   
 	   pulsePointer = pulseLengths;
 	   return;
@@ -603,7 +603,7 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 #ifdef CRSF_PROTOCOL
 		if ( g_model.protocol == PROTO_CRSF)
 		{
-			t = 7325 ; //next frame starts in 4 msec 7325 = 2*(4000 - 15*9*2.5)
+			t = 0; //next frame starts in 4 msec 7325 = 2*(4000 - 15*9*2.5)
 		}
 #endif //CRSF_PRTOCOL
 #ifdef MULTI_PROTOCOL
@@ -615,7 +615,10 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 		{
 		 	if(g_model.protocol == PROTO_CRSF)
 #ifdef ULTRA_CRSF
-				OCR1C = t-1500;
+			{
+				OCR1C = 6000;
+				//getTrims();
+			}
 #else
 				OCR1C = t-1800 ;  //1800-for no low latency sticks. delay setup pulses to reduce sytem latency (calculate pulses 1ms before generating them)
 #endif
@@ -631,6 +634,9 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
 			//SerialPulseCalc();
 			OCR1C=pass_bitlen*10;
 			heartbeat |= HEART_TIMER2Mhz ;		
+#ifdef ULTRA_CRSF
+			ICR1 = TCNT1 + 50;
+#endif
  		}
   }
   else		// must be PXX
@@ -639,11 +645,15 @@ ISR(TIMER1_COMPC_vect) // DSM2&MULTI or PXX end of frame
   }
 }
 
+extern int16_t  trimA[4];
+#define RESX_CRSF    1023
 void ReadSticks(void)
 {										//AETR1234
 	for(int i=1 ; i<5 ; i++)
 	{
-		g_chans512[i] = scaleAnalog(4-i);
+		g_chans512[i] = scaleAnalog(4-i) + trimA[4-i];
+		if(g_chans512[i] <= -RESX_CRSF) g_chans512[i] = -RESX_CRSF;
+		else if(g_chans512[i] >=  RESX_CRSF) g_chans512[i] =  RESX_CRSF;
 	}
 }
 
